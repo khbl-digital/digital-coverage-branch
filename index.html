@@ -131,12 +131,12 @@
                         <div class="kpi-card rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Chỉ Đường (Drive-to-store)</p>
                             <p class="text-3xl font-black text-pnjBlue" id="kpi-dir">0</p>
-                            <div class="mt-2 flex items-center justify-between"><span class="text-[11px] text-gray-500">O2O Conversion</span><span class="text-xl">🗺️</span></div>
+                            <div class="mt-2 flex items-center justify-between"><span id="kpi-dir-growth" class="font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500">0% YoY</span><span class="text-xl">🗺️</span></div>
                         </div>
                         <div class="kpi-card rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Tin Nhắn (FMB x ZMB)</p>
                             <p class="text-3xl font-black text-pnjBlue" id="kpi-msg">0</p>
-                            <div class="mt-2 flex items-center justify-between"><span class="text-[11px] text-gray-500">Hội thoại tư vấn</span><span class="text-xl">💬</span></div>
+                            <div class="mt-2 flex items-center justify-between"><span id="kpi-msg-growth" class="font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500">0% YoY</span><span class="text-xl">💬</span></div>
                         </div>
                         <div class="bg-red-50 rounded-xl p-5 shadow-sm border border-red-200 hover:shadow-md transition">
                             <p class="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-1">Rating GMB Trung Bình</p>
@@ -439,6 +439,8 @@
                 const rating26 = cleanNumber(getSafeCol(row, ['Điểm 5* GMB', 'Điểm 5*', 'Rating']));
                 
                 const view25 = cleanNumber(getSafeCol(pastRow, ['Total View GMB', 'Total View', 'Views']));
+                const msg25 = cleanNumber(getSafeCol(pastRow, ['Tin nhắn FMB x ZMB', 'Tin nhắn', 'Message']));
+                const dir25 = cleanNumber(getSafeCol(pastRow, ['Chỉ đường GMB', 'Chỉ đường', 'Direction']));
                 
                 let viewGrowth = 0;
                 if(view25 > 0) viewGrowth = (((view26 - view25) / view25) * 100).toFixed(1);
@@ -474,7 +476,7 @@
                     dir: dir26, 
                     rating: rating26,
                     viewGrowth: parseFloat(viewGrowth),
-                    view25: view25 
+                    view25: view25, msg25: msg25, dir25: dir25 
                 };
 
                 allData.push(itemObj);
@@ -508,7 +510,7 @@
         }
 
         function updateOverviewDashboard(data) {
-            let tView26 = 0, tView25 = 0, tMsg = 0, tDir = 0;
+            let tView26 = 0, tView25 = 0, tMsg26 = 0, tMsg25 = 0, tDir26 = 0, tDir25 = 0;
             let sumRating = 0, countRating = 0;
 
             const tierGroups = {'Tier 1': 0, 'Tier 2': 0, 'Tier 3': 0};
@@ -517,8 +519,8 @@
             data.forEach(d => {
                 tView26 += d.views; 
                 tView25 += d.view25; 
-                tMsg += d.msg; 
-                tDir += d.dir;
+                tMsg26 += d.msg; tMsg25 += d.msg25;
+                tDir26 += d.dir; tDir25 += d.dir25;
                 
                 if (d.rating > 0) { 
                     sumRating += d.rating; 
@@ -536,15 +538,25 @@
 
             const avgRating = countRating > 0 ? (sumRating / countRating).toFixed(2) : 0;
             const viewGrowth = tView25 > 0 ? (((tView26 - tView25) / tView25) * 100).toFixed(1) : 0;
+            const msgGrowth = tMsg25 > 0 ? (((tMsg26 - tMsg25) / tMsg25) * 100).toFixed(1) : 0;
+            const dirGrowth = tDir25 > 0 ? (((tDir26 - tDir25) / tDir25) * 100).toFixed(1) : 0;
 
             document.getElementById('kpi-views').innerText = formatNumber(tView26);
-            document.getElementById('kpi-msg').innerText = formatNumber(tMsg);
-            document.getElementById('kpi-dir').innerText = formatNumber(tDir);
+            document.getElementById('kpi-msg').innerText = formatNumber(tMsg26);
+            document.getElementById('kpi-dir').innerText = formatNumber(tDir26);
             document.getElementById('kpi-rating').innerText = avgRating;
 
             const growthEl = document.getElementById('kpi-views-growth');
             if(viewGrowth > 0) { growthEl.innerText = `▲ +${viewGrowth}% YoY`; growthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700"; }
             else { growthEl.innerText = `▼ ${viewGrowth}% YoY`; growthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700"; }
+
+            const msgGrowthEl = document.getElementById('kpi-msg-growth');
+            if(msgGrowth > 0) { msgGrowthEl.innerText = `▲ +${msgGrowth}% YoY`; msgGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700"; }
+            else { msgGrowthEl.innerText = `▼ ${msgGrowth}% YoY`; msgGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700"; }
+
+            const dirGrowthEl = document.getElementById('kpi-dir-growth');
+            if(dirGrowth > 0) { dirGrowthEl.innerText = `▲ +${dirGrowth}% YoY`; dirGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700"; }
+            else { dirGrowthEl.innerText = `▼ ${dirGrowth}% YoY`; dirGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700"; }
 
             const rateStatusEl = document.getElementById('kpi-rating-status');
             if(avgRating >= 4.5) { rateStatusEl.innerText = "Chất lượng Ổn định"; rateStatusEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700"; }
