@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNJ Digital Coverage - Local Based Marketing</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pnjBlue: '#003366',
+                        pnjGold: '#F2A900',
+                        pnjGray: '#f8fafc',
+                        success: '#10b981',
+                        danger: '#ef4444',
+                        warning: '#f59e0b',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Segoe UI', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .main-tab-btn { border-bottom: 3px solid transparent; transition: all 0.3s; }
+        .main-tab-btn.active { border-bottom-color: #F2A900; color: #F2A900; font-weight: 600; }
+        .anchor-nav-btn { transition: all 0.2s; border: 1px solid transparent; }
+        .anchor-nav-btn:hover { border-color: #cbd5e1; background-color: #f8fafc; }
+        .scroll-mt-32 { scroll-margin-top: 8rem; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .hide-scroll-bar { -ms-overflow-style: none; scrollbar-width: none; }
+        .hide-scroll-bar::-webkit-scrollbar { display: none; }
+        .marker-cluster-small { background-color: rgba(242, 169, 0, 0.6); }
+        .marker-cluster-small div { background-color: rgba(242, 169, 0, 0.9); color: white; font-weight: bold; }
+        .marker-cluster-medium { background-color: rgba(0, 51, 102, 0.6); }
+        .marker-cluster-medium div { background-color: rgba(0, 51, 102, 0.9); color: white; font-weight: bold; }
+        .marker-cluster-large { background-color: rgba(239, 68, 68, 0.6); }
+        .marker-cluster-large div { background-color: rgba(239, 68, 68, 0.9); color: white; font-weight: bold; }
+        .kpi-card { background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%); }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #F2A900; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+    <header class="bg-pnjBlue text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold tracking-tight text-pnjGold uppercase">Báo Cáo Digital Coverage PNJ</h1>
+                    <div class="inline-flex items-center bg-white/10 px-3 py-1.5 rounded-full mt-2 border border-white/20">
+                        <svg class="w-4 h-4 text-pnjGold mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path></svg>
+                        <span class="text-xs font-medium tracking-wide text-white uppercase">Local Based Marketing</span>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end gap-2 mt-2 md:mt-0">
+                    <div id="loading-indicator" class="flex items-center text-xs text-pnjGold bg-white/10 px-3 py-2 rounded-full border border-white/20 backdrop-blur">
+                        <div class="loader mr-2"></div> Đang đồng bộ Data (2026 vs 2025)...
+                    </div>
+                </div>
+            </div>
+            <div class="flex space-x-6 overflow-x-auto hide-scroll-bar whitespace-nowrap mt-4 border-b border-white/10">
+                <button onclick="switchTab('tab-overview')" id="btn-tab-overview" class="main-tab-btn active pb-3 text-white hover:text-pnjGold focus:outline-none font-medium text-sm md:text-base uppercase tracking-wide">📑 Phân Tích & Tổng Quan</button>
+                <button onclick="switchTab('tab-map')" id="btn-tab-map" class="main-tab-btn pb-3 text-gray-300 hover:text-pnjGold focus:outline-none font-medium text-sm md:text-base uppercase tracking-wide">🗺️ Trực Quan Hóa Bản Đồ</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative">
+        <div id="tab-overview" class="block cursor-default">
+            <div class="sticky top-[138px] md:top-[128px] z-40 bg-gray-50/95 backdrop-blur shadow-sm border-b border-gray-200 -mx-4 px-4 sm:mx-0 sm:px-0 py-2 mb-6 rounded-b-lg">
+                <nav class="flex overflow-x-auto custom-scrollbar gap-2 pb-1">
+                    <a href="#sec-1" class="anchor-nav-btn whitespace-nowrap px-4 py-1.5 rounded-full bg-white text-xs font-semibold text-pnjBlue shadow-sm">1. Toàn Hệ Thống</a>
+                    <a href="#sec-2" class="anchor-nav-btn whitespace-nowrap px-4 py-1.5 rounded-full bg-white text-xs font-semibold text-pnjBlue shadow-sm">2. Theo Phân Hạng (Tier)</a>
+                    <a href="#sec-3" class="anchor-nav-btn whitespace-nowrap px-4 py-1.5 rounded-full bg-white text-xs font-semibold text-pnjBlue shadow-sm">3. Theo Chi Nhánh</a>
+                    <a href="#sec-4" class="anchor-nav-btn whitespace-nowrap px-4 py-1.5 rounded-full bg-white text-xs font-semibold text-pnjBlue shadow-sm">4. Quy Hoạch Địa Bàn</a>
+                    <a href="#sec-5" class="anchor-nav-btn whitespace-nowrap px-4 py-1.5 rounded-full bg-pnjGold text-pnjBlue shadow-sm text-xs font-bold">5. Kiến Nghị SMT</a>
+                </nav>
+            </div>
+
+            <div class="space-y-12">
+                <div id="sec-1" class="scroll-mt-32 space-y-4">
+                    <h2 class="text-xl font-bold text-pnjBlue flex items-center border-b border-gray-200 pb-2">
+                        <span class="bg-pnjGold text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-3">1</span>
+                        Chỉ số Toàn Hệ thống qua 2 năm
+                    </h2>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="kpi-card rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Tổng Lượt Xem (GMB)</p>
+                            <p class="text-3xl font-black text-pnjBlue" id="kpi-views">0</p>
+                            <div class="mt-2 flex items-center justify-between">
+                                <span id="kpi-views-growth" class="font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500">0% YoY</span>
+                                <span class="text-xl">👁️</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Chỉ Đường (Drive-to-store)</p>
+                            <p class="text-3xl font-black text-pnjBlue" id="kpi-dir">0</p>
+                            <div class="mt-2 flex items-center justify-between">
+                                <span id="kpi-dir-growth" class="font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500">0% YoY</span>
+                                <span class="text-xl">🗺️</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Tin Nhắn (FMB x ZMB)</p>
+                            <p class="text-3xl font-black text-pnjBlue" id="kpi-msg">0</p>
+                            <div class="mt-2 flex items-center justify-between">
+                                <span id="kpi-msg-growth" class="font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500">0% YoY</span>
+                                <span class="text-xl">💬</span>
+                            </div>
+                        </div>
+                        <div class="bg-red-50 rounded-xl p-5 shadow-sm border border-red-200 hover:shadow-md transition">
+                            <p class="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-1">Rating GMB Trung Bình</p>
+                            <p class="text-3xl font-black text-red-700"><span id="kpi-rating">0.0</span><span class="text-sm font-normal text-red-400">/5</span></p>
+                            <div class="mt-2 flex items-center justify-between">
+                                <span id="kpi-rating-status" class="font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700">Rủi ro Trust</span>
+                                <span class="text-xl">⭐</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+                        <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                            <h3 class="text-sm font-bold text-gray-700 uppercase mb-4">So Sánh Tổng Quan 2025 vs 2026</h3>
+                            <div class="h-[250px] w-full"><canvas id="trendChart"></canvas></div>
+                        </div>
+                        <div class="bg-pnjBlue text-white p-6 rounded-xl shadow-sm relative overflow-hidden flex flex-col justify-center">
+                            <div class="absolute -right-6 -top-6 text-9xl opacity-10">🎯</div>
+                            <h3 class="text-lg font-bold text-pnjGold mb-3">Tóm Tắt Điều Hành</h3>
+                            <p class="text-sm leading-relaxed text-gray-200">
+                                Digital coverage đang dịch chuyển từ vai trò hỗ trợ truyền thông sang vai trò <strong>điều phối trực tiếp tăng trưởng retail</strong> thông qua Local Discovery và Drive-to-store.
+                            </p>
+                            <div class="mt-4 bg-red-500/20 border border-red-500/50 p-3 rounded text-sm text-white relative z-10">
+                                <strong>⚠️ Lưu ý cấp bách:</strong> Tăng trưởng hiện diện chưa đi cùng nhịp với chất lượng. Điểm rating giảm là tín hiệu cần xử lý như bài toán vận hành chiến lược.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sec-2" class="scroll-mt-32 space-y-4">
+                    <h2 class="text-xl font-bold text-pnjBlue flex items-center border-b border-gray-200 pb-2">
+                        <span class="bg-pnjGold text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-3">2</span>
+                        Phân Tích Theo Phân Hạng (Tier)
+                    </h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                            <h3 class="text-sm font-bold text-gray-700 uppercase mb-4 text-center">Tỷ Trọng Views Theo Tier</h3>
+                            <div class="h-[200px] w-full"><canvas id="tierChart"></canvas></div>
+                        </div>
+                        <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="bg-white p-4 rounded-xl border border-red-100 shadow-sm border-t-4 border-t-red-500">
+                                <h4 class="font-bold text-gray-800 text-base mb-1">Tier 1</h4>
+                                <span class="text-xs font-semibold text-red-500 bg-red-50 px-2 py-1 rounded">Lõi Tăng Trưởng</span>
+                                <p class="text-xs text-gray-600 mt-3">Động cơ tăng trưởng chính của toàn hệ. Áp lực chất lượng cao nhất.</p>
+                                <p class="text-xs font-semibold text-pnjBlue mt-2">➤ Hành động: Ưu tiên bảo toàn chất lượng trải nghiệm hơn mở rộng.</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl border border-blue-100 shadow-sm border-t-4 border-t-blue-500">
+                                <h4 class="font-bold text-gray-800 text-base mb-1">Tier 2</h4>
+                                <span class="text-xs font-semibold text-blue-500 bg-blue-50 px-2 py-1 rounded">Dư Địa Mới</span>
+                                <p class="text-xs text-gray-600 mt-3">Lớp dư địa tăng trưởng mới. Tỷ lệ chuyển đổi Dir/Search tăng tốt.</p>
+                                <p class="text-xs font-semibold text-pnjBlue mt-2">➤ Hành động: Tăng local discoverability và O2O Conversion.</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl border border-green-100 shadow-sm border-t-4 border-t-green-500">
+                                <h4 class="font-bold text-gray-800 text-base mb-1">Tier 3</h4>
+                                <span class="text-xs font-semibold text-green-500 bg-green-50 px-2 py-1 rounded">Test Sức Cầu</span>
+                                <p class="text-xs text-gray-600 mt-3">Phù hợp mô hình digital-first để test demand với rủi ro thấp.</p>
+                                <p class="text-xs font-semibold text-pnjBlue mt-2">➤ Hành động: Áp dụng mô hình Digital-first để test khu vực.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sec-3" class="scroll-mt-32 space-y-4">
+                    <h2 class="text-xl font-bold text-pnjBlue flex items-center border-b border-gray-200 pb-2">
+                        <span class="bg-pnjGold text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-3">3</span>
+                        Chất Lượng Vận Hành Theo Chi Nhánh
+                    </h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                            <h3 class="text-sm font-bold text-gray-700 uppercase mb-4">Top Chi Nhánh (O2O vs Tin Nhắn)</h3>
+                            <div class="h-[280px] w-full"><canvas id="branchChart"></canvas></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-sm text-pnjBlue">Hồ Chí Minh</h4>
+                                <p class="text-xs text-gray-600 mt-1">Demand rất mạnh nhưng rating có xu hướng suy giảm. Cần siết review governance và trải nghiệm cửa hàng.</p>
+                            </div>
+                            <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                                <h4 class="font-bold text-sm text-pnjBlue">Miền Bắc</h4>
+                                <p class="text-xs text-gray-600 mt-1">Khu vực giữ chất lượng tốt, phù hợp làm benchmark cho playbook local coverage.</p>
+                            </div>
+                            <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                                <h4 class="font-bold text-sm text-pnjBlue">Miền Tây & ĐNB</h4>
+                                <p class="text-xs text-gray-600 mt-1">Tỷ lệ drive-to-store cao, còn dư địa để tối ưu phễu local conversion.</p>
+                            </div>
+                            <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+                                <h4 class="font-bold text-sm text-pnjBlue">Tây Nguyên & Nam Trung Bộ</h4>
+                                <p class="text-xs text-gray-600 mt-1">Cần sửa nền vận hành và đồng bộ naming để tránh lệch data và lệch trust.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sec-4" class="scroll-mt-32 space-y-4">
+                    <h2 class="text-xl font-bold text-pnjBlue flex items-center border-b border-gray-200 pb-2">
+                        <span class="bg-pnjGold text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-3">4</span>
+                        Radar Quy Hoạch Địa Bàn (Tỉnh/Thành)
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-green-100 overflow-hidden">
+                            <div class="bg-green-500 text-white px-4 py-3 font-bold flex justify-between items-center">
+                                <span>🚀 Ưu Tiên Khảo Sát Mở Rộng</span>
+                                <span class="text-xs bg-white/20 px-2 py-1 rounded">Tín hiệu Demand Tốt</span>
+                            </div>
+                            <ul class="divide-y divide-gray-100 px-4 py-2">
+                                <li class="py-3"><p class="text-sm font-semibold text-gray-800">Bình Dương</p><p class="text-xs text-green-600 mt-0.5">Tỷ lệ Chỉ đường/Search cao, phù hợp đưa vào watchlist mở mới.</p></li>
+                                <li class="py-3"><p class="text-sm font-semibold text-gray-800">Hải Phòng & Hải Dương</p><p class="text-xs text-green-600 mt-0.5">White space tốt, tín hiệu demand tích cực, phù hợp nâng vai trò cửa hàng.</p></li>
+                                <li class="py-3"><p class="text-sm font-semibold text-gray-800">Đồng Tháp & Tiền Giang</p><p class="text-xs text-green-600 mt-0.5">Cụm tỉnh phù hợp mô hình digital-first để scale có kiểm soát.</p></li>
+                                <li class="py-3"><p class="text-sm font-semibold text-gray-800">Quảng Ngãi</p><p class="text-xs text-green-600 mt-0.5">Social storefront và demand cùng tăng, đáng đưa vào pipeline khảo sát.</p></li>
+                            </ul>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-red-100 overflow-hidden">
+                            <div class="bg-danger text-white px-4 py-3 font-bold flex justify-between items-center">
+                                <span>⚠️ Cần Sửa Nền Gấp (Watchlist)</span>
+                                <span class="text-xs bg-white/20 px-2 py-1 rounded">Rating Báo Động</span>
+                            </div>
+                            <ul class="divide-y divide-gray-100 px-4 py-2">
+                                <li class="py-3"><p class="text-sm font-semibold text-gray-800">Hồ Chí Minh</p><p class="text-xs text-red-500 mt-0.5">Thị trường lõi nhưng áp lực rating cao. Cần chương trình reputation recovery.</p></li>
+                                <li class="py-3"><p class="text-sm font-semibold text-gray-800">Kiên Giang</p><p class="text-xs text-red-500 mt-0.5">Views tăng nhanh nhưng rating yếu. Không nên scale trước khi sửa nền.</p></li>
+                                <li class="py-3"><p class="text-sm font-semibold text-gray-800">Tây Ninh & Long An</p><p class="text-xs text-red-500 mt-0.5">Trải nghiệm công khai chưa tương xứng với demand. Ưu tiên chuẩn hóa local ops.</p></li>
+                                <li class="py-3"><p class="text-sm font-semibold text-gray-800">Tây Nguyên & Nam Trung Bộ</p><p class="text-xs text-red-500 mt-0.5">Hiện diện tăng nhanh hơn vận hành. Trọng tâm là ổn định trust và data quality.</p></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sec-5" class="scroll-mt-32 space-y-4">
+                    <h2 class="text-xl font-bold text-pnjBlue flex items-center border-b border-gray-200 pb-2">
+                        <span class="bg-pnjGold text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-3">5</span>
+                        Kiến Nghị Điều Hành Cho SMT & Khối Retail
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div class="bg-white border-t-4 border-pnjBlue p-4 shadow-sm rounded-b-lg">
+                            <h3 class="font-bold text-sm text-gray-800 mb-2">1. Định Lại KPI</h3>
+                            <p class="text-xs text-gray-600">Dịch chuyển đánh giá sang <strong>Directions/Search, Views/Search, Message</strong> và duy trì Rating Floor.</p>
+                        </div>
+                        <div class="bg-white border-t-4 border-pnjGold p-4 shadow-sm rounded-b-lg">
+                            <h3 class="font-bold text-sm text-gray-800 mb-2">2. Playbook Theo Tier</h3>
+                            <p class="text-xs text-gray-600">Tách biệt chiến lược Tier 1, Tier 2 và Tier 3 để phân bổ theo hiệu quả biên.</p>
+                        </div>
+                        <div class="bg-white border-t-4 border-success p-4 shadow-sm rounded-b-lg">
+                            <h3 class="font-bold text-sm text-gray-800 mb-2">3. Mở Mới Địa Bàn</h3>
+                            <p class="text-xs text-gray-600">Dùng digital coverage như radar sớm để ưu tiên mặt bằng tại các cụm demand tốt.</p>
+                        </div>
+                        <div class="bg-white border-t-4 border-danger p-4 shadow-sm rounded-b-lg">
+                            <h3 class="font-bold text-sm text-gray-800 mb-2">4. Phục Hồi Uy Tín</h3>
+                            <p class="text-xs text-gray-600">Kích hoạt chương trình trust recovery tại các khu vực rating suy giảm mạnh.</p>
+                        </div>
+                        <div class="bg-white border-t-4 border-gray-400 p-4 shadow-sm rounded-b-lg">
+                            <h3 class="font-bold text-sm text-gray-800 mb-2">5. Data Governance</h3>
+                            <p class="text-xs text-gray-600">Khóa logic map Plant, chuẩn hóa Branch/Tier và đồng bộ data local storefront.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-map" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-3 items-end z-20 relative">
+                <div class="flex-1 min-w-[140px]">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Chi Nhánh</label>
+                    <select id="filter-branch" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 text-gray-700 rounded p-2 text-sm focus:ring-pnjGold outline-none cursor-pointer">
+                        <option value="All">Toàn quốc</option>
+                    </select>
+                </div>
+                <div class="flex-1 min-w-[140px]">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tỉnh / Thành</label>
+                    <select id="filter-province" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 text-gray-700 rounded p-2 text-sm focus:ring-pnjGold outline-none cursor-pointer">
+                        <option value="All">Tất cả</option>
+                    </select>
+                </div>
+                <div class="flex-1 min-w-[140px]">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Phân hạng (Tier)</label>
+                    <select id="filter-tier" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 text-gray-700 rounded p-2 text-sm focus:ring-pnjGold outline-none cursor-pointer">
+                        <option value="All">Tất cả</option>
+                    </select>
+                </div>
+                <div class="w-full md:w-auto mt-2 md:mt-0">
+                    <button onclick="resetFilters()" class="w-full md:w-auto bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded text-sm transition flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Khôi Phục Toàn Quốc
+                    </button>
+                </div>
+            </div>
+
+            <div class="relative w-full flex flex-col lg:block h-[800px] lg:h-[700px] rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-gray-100">
+                <div id="map" class="w-full h-[400px] lg:absolute lg:inset-0 z-0"></div>
+                <div class="w-full flex-1 lg:absolute lg:top-4 lg:left-4 lg:bottom-4 lg:w-[340px] bg-white lg:bg-white/95 lg:backdrop-blur lg:shadow-2xl rounded-none lg:rounded-xl border-t lg:border border-gray-200 z-[400] flex flex-col overflow-hidden transition-all">
+                    <div class="p-3 border-b border-gray-200 bg-gray-50 flex justify-between items-center shrink-0">
+                        <h3 class="font-bold text-pnjBlue text-sm uppercase">Danh Sách Cửa Hàng</h3>
+                        <span id="list-count" class="bg-pnjBlue text-white text-xs font-bold px-2 py-1 rounded-full">0</span>
+                    </div>
+                    <div class="px-3 py-2 bg-gray-100/80 text-[10px] uppercase font-bold text-gray-500 grid grid-cols-12 gap-2 border-b border-gray-200 shrink-0">
+                        <div class="col-span-7">Thông tin Store</div>
+                        <div class="col-span-3 text-right">View YoY</div>
+                        <div class="col-span-2 text-center">Rate</div>
+                    </div>
+                    <div class="p-2 overflow-y-auto custom-scrollbar flex-1 relative" id="store-list-container"></div>
+                </div>
+                <div class="hidden lg:block absolute bottom-6 right-4 bg-white/95 backdrop-blur px-3 py-2 rounded-lg shadow-lg border border-gray-200 text-[11px] z-[400] pointer-events-none">
+                    <p class="font-bold text-gray-700 mb-2 border-b border-gray-100 pb-1">Phân loại Tier</p>
+                    <div class="flex items-center gap-2 mb-1.5"><span class="w-3 h-3 rounded-full bg-red-500 shadow-sm border border-white"></span> Tier 1 (Lõi)</div>
+                    <div class="flex items-center gap-2 mb-1.5"><span class="w-3 h-3 rounded-full bg-blue-500 shadow-sm border border-white"></span> Tier 2 (O2O)</div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500 shadow-sm border border-white"></span> Tier 3 (Test)</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let storeData = [];
+        let raw2025 = [];
+        let raw2026 = [];
+        let mapInitialized = false;
+        let summary2025 = {};
+        let summary2026 = {};
+        let chartInstances = {};
+        let map;
+        let markersClusterGroup;
+        let storeMarkers = {};
+
+        const URL_2025 = 'data_2025.csv';
+        const URL_2026 = 'data_2026.csv';
+
+        function normalizeText(value) {
+            return String(value ?? '').trim();
+        }
+
+        function normalizeBranch(value) {
+            const v = normalizeText(value).toLowerCase();
+            if (!v) return 'Khác';
+            if (v === 'tây nguyên' || v === 'tây nguyên & nam trung bộ') return 'Tây Nguyên & Nam Trung Bộ';
+            if (v === 'ho chi minh' || v === 'hồ chí minh') return 'Hồ Chí Minh';
+            if (v === 'mien bac' || v === 'miền bắc') return 'Miền Bắc';
+            if (v === 'mien tay' || v === 'miền tây') return 'Miền Tây';
+            if (v === 'mien trung' || v === 'miền trung') return 'Miền Trung';
+            if (v === 'dong nam bo' || v === 'đông nam bộ') return 'Đông Nam Bộ';
+            return normalizeText(value);
+        }
+
+        function normalizeTier(value) {
+            const raw = normalizeText(value).toLowerCase();
+            if (!raw || raw === '0' || raw === '0.0' || raw === 'nan' || raw === 'null') return 'Chưa phân loại';
+            if (raw === '1' || raw === '1.0' || raw === 'tier 1' || raw === 'tier 01') return '1';
+            if (raw === '2' || raw === '2.0' || raw === 'tier 2' || raw === 'tier 02') return '2';
+            if (raw === '3' || raw === '3.0' || raw === 'tier 3' || raw === 'tier 03') return '3';
+            return 'Chưa phân loại';
+        }
+
+        function toNumber(value) {
+            const n = Number(String(value ?? '').replace(/,/g, '').trim());
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function isValidCoordinate(value) {
+            const n = Number(value);
+            return Number.isFinite(n) && n !== 0;
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function formatGrowthElement(el, growth) {
+            if (growth > 0) {
+                el.innerText = `▲ +${growth.toFixed(1)}% YoY`;
+                el.className = 'font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700';
+            } else if (growth < 0) {
+                el.innerText = `▼ ${growth.toFixed(1)}% YoY`;
+                el.className = 'font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700';
+            } else {
+                el.innerText = `0.0% YoY`;
+                el.className = 'font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500';
+            }
+        }
+
+        function computeSummary(rows) {
+            let views = 0, msg = 0, dir = 0, sumRating = 0, countRating = 0;
+            rows.forEach(row => {
+                views += toNumber(row['Total View GMB']);
+                msg += toNumber(row['Tin nhắn FMB x ZMB']);
+                dir += toNumber(row['Chỉ đường GMB']);
+                const rating = toNumber(row['Điểm 5* GMB']);
+                if (rating > 0) { sumRating += rating; countRating += 1; }
+            });
+            return {
+                views,
+                msg,
+                dir,
+                avgRating: countRating ? sumRating / countRating : 0,
+            };
+        }
+
+        function fetchCSV(url) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    dynamicTyping: false,
+                    skipEmptyLines: true,
+                    complete: results => resolve(results),
+                    error: err => reject(err),
+                });
+            });
+        }
+
+        async function loadExternalData() {
+            try {
+                const [res25, res26] = await Promise.all([fetchCSV(URL_2025), fetchCSV(URL_2026)]);
+                raw2025 = res25.data;
+                raw2026 = res26.data;
+                processMergedData();
+            } catch (error) {
+                console.error('Lỗi load CSV:', error);
+                const loader = document.getElementById('loading-indicator');
+                if (loader) {
+                    loader.innerHTML = '<span class="text-white font-bold">❌ Không load được CSV</span>';
+                    loader.classList.remove('bg-white/10', 'border-white/20', 'text-pnjGold');
+                    loader.classList.add('bg-red-500', 'border-red-600', 'text-white');
+                }
+            }
+        }
+
+        function processMergedData() {
+            const map2025 = {};
+            raw2025.forEach(row => {
+                const plant = normalizeText(row['Plant']);
+                if (plant) map2025[plant] = row;
+            });
+
+            summary2025 = computeSummary(raw2025);
+            summary2026 = computeSummary(raw2026);
+
+            const parsedData = raw2026
+                .filter(row => isValidCoordinate(row['Latitude']) && isValidCoordinate(row['Longitude']))
+                .map(row => {
+                    const id = normalizeText(row['Plant']) || 'N/A';
+                    const pastRow = map2025[id] || {};
+
+                    const view26 = toNumber(row['Total View GMB']);
+                    const msg26 = toNumber(row['Tin nhắn FMB x ZMB']);
+                    const dir26 = toNumber(row['Chỉ đường GMB']);
+                    const rating26 = toNumber(row['Điểm 5* GMB']);
+                    const view25 = toNumber(pastRow['Total View GMB']);
+
+                    let viewGrowth = 0;
+                    if (view25 > 0) viewGrowth = ((view26 - view25) / view25) * 100;
+                    else if (view26 > 0) viewGrowth = 100;
+
+                    return {
+                        id,
+                        name: normalizeText(row['TÊN CỬA HÀNG']) || 'Chưa rõ tên',
+                        branch: normalizeBranch(row['Chi nhánh']),
+                        province: normalizeText(row['TỈNH/TP (TRÊN SAP)']) || 'Khác',
+                        tier: normalizeTier(row['Tier']),
+                        lat: Number(row['Latitude']),
+                        lng: Number(row['Longitude']),
+                        msg: msg26,
+                        views: view26,
+                        dir: dir26,
+                        rating: rating26,
+                        viewGrowth,
+                        view25,
+                    };
+                });
+
+            storeData = parsedData;
+            populateDropdowns();
+            updateOverviewDashboard(storeData);
+            if (mapInitialized) renderMapAndList(storeData);
+
+            const loader = document.getElementById('loading-indicator');
+            if (loader) loader.classList.add('hidden');
+        }
+
+        function updateOverviewDashboard(data) {
+            let sumRating26 = 0, countRating26 = 0;
+            const tierGroups = {'Tier 1': 0, 'Tier 2': 0, 'Tier 3': 0, 'Chưa phân loại': 0};
+            const branchData = {};
+
+            data.forEach(d => {
+                if (d.rating > 0) { sumRating26 += d.rating; countRating26++; }
+                const tierLabel = d.tier === '1' ? 'Tier 1' : d.tier === '2' ? 'Tier 2' : d.tier === '3' ? 'Tier 3' : 'Chưa phân loại';
+                tierGroups[tierLabel] += d.views;
+
+                if (!branchData[d.branch]) branchData[d.branch] = { msg: 0, dir: 0 };
+                branchData[d.branch].msg += d.msg;
+                branchData[d.branch].dir += d.dir;
+            });
+
+            const avgRating26 = countRating26 ? sumRating26 / countRating26 : 0;
+            const viewGrowth = summary2025.views > 0 ? ((summary2026.views - summary2025.views) / summary2025.views) * 100 : 0;
+            const dirGrowth = summary2025.dir > 0 ? ((summary2026.dir - summary2025.dir) / summary2025.dir) * 100 : 0;
+            const msgGrowth = summary2025.msg > 0 ? ((summary2026.msg - summary2025.msg) / summary2025.msg) * 100 : 0;
+
+            document.getElementById('kpi-views').innerText = formatNumber(summary2026.views);
+            document.getElementById('kpi-msg').innerText = formatNumber(summary2026.msg);
+            document.getElementById('kpi-dir').innerText = formatNumber(summary2026.dir);
+            document.getElementById('kpi-rating').innerText = avgRating26.toFixed(2);
+
+            formatGrowthElement(document.getElementById('kpi-views-growth'), viewGrowth);
+            formatGrowthElement(document.getElementById('kpi-dir-growth'), dirGrowth);
+            formatGrowthElement(document.getElementById('kpi-msg-growth'), msgGrowth);
+
+            const rateStatusEl = document.getElementById('kpi-rating-status');
+            if (avgRating26 >= 4.5) {
+                rateStatusEl.innerText = 'Chất lượng Ổn định';
+                rateStatusEl.className = 'font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700';
+            } else if (avgRating26 >= 4.0) {
+                rateStatusEl.innerText = 'Cần theo dõi';
+                rateStatusEl.className = 'font-bold px-2 py-0.5 rounded text-[11px] bg-yellow-100 text-yellow-700';
+            } else {
+                rateStatusEl.innerText = 'Rủi ro Trust (Cấp bách)';
+                rateStatusEl.className = 'font-bold px-2 py-0.5 rounded text-[11px] bg-red-200 text-red-800';
+            }
+
+            const sortedBranches = Object.keys(branchData)
+                .sort((a, b) => (branchData[b].msg + branchData[b].dir) - (branchData[a].msg + branchData[a].dir))
+                .slice(0, 6);
+
+            renderOverviewCharts(
+                tierGroups,
+                sortedBranches,
+                sortedBranches.map(b => branchData[b].msg),
+                sortedBranches.map(b => branchData[b].dir)
+            );
+        }
+
+        function renderOverviewCharts(tierData, branchLabels, branchMsg, branchDir) {
+            Object.values(chartInstances).forEach(chart => chart && chart.destroy());
+            Chart.defaults.font.family = "'Inter', sans-serif";
+
+            chartInstances.tier = new Chart(document.getElementById('tierChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Tier 1', 'Tier 2', 'Tier 3', 'Chưa phân loại'],
+                    datasets: [{
+                        data: [tierData['Tier 1'], tierData['Tier 2'], tierData['Tier 3'], tierData['Chưa phân loại']],
+                        backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#94a3b8'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } },
+                    cutout: '65%'
+                }
+            });
+
+            chartInstances.branch = new Chart(document.getElementById('branchChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: branchLabels,
+                    datasets: [
+                        { label: 'Chỉ Đường', data: branchDir, backgroundColor: '#F2A900', borderRadius: 2 },
+                        { label: 'Tin Nhắn', data: branchMsg, backgroundColor: '#003366', borderRadius: 2 }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } }
+                    }
+                }
+            });
+
+            chartInstances.trend = new Chart(document.getElementById('trendChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Total View GMB', 'Tin nhắn FMB x ZMB', 'Chỉ đường GMB'],
+                    datasets: [
+                        {
+                            label: '2025',
+                            data: [summary2025.views, summary2025.msg, summary2025.dir],
+                            backgroundColor: 'rgba(148, 163, 184, 0.8)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: '2026',
+                            data: [summary2026.views, summary2026.msg, summary2026.dir],
+                            backgroundColor: 'rgba(0, 51, 102, 0.9)',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { ticks: { font: { size: 10 }, callback: value => formatNumber(value) } }
+                    }
+                }
+            });
+        }
+
+        function switchTab(tabId) {
+            document.getElementById('tab-overview').classList.add('hidden');
+            document.getElementById('tab-map').classList.add('hidden');
+            document.getElementById('btn-tab-overview').classList.remove('active', 'text-pnjGold');
+            document.getElementById('btn-tab-map').classList.remove('active', 'text-pnjGold');
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById('btn-' + tabId).classList.add('active', 'text-pnjGold');
+
+            if (tabId === 'tab-map') {
+                if (!mapInitialized) { initMap(); mapInitialized = true; }
+                else { setTimeout(() => map.invalidateSize(), 200); }
+            }
+        }
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([15.0583, 108.2772], 6);
+            L.control.zoom({ position: 'topright' }).addTo(map);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' }).addTo(map);
+            markersClusterGroup = L.markerClusterGroup({
+                chunkedLoading: true,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true,
+                maxClusterRadius: 40
+            });
+            map.addLayer(markersClusterGroup);
+            if (storeData.length > 0) renderMapAndList(storeData);
+        }
+
+        function populateDropdowns() {
+            const branches = [...new Set(storeData.map(item => item.branch))].filter(Boolean).sort();
+            const provinces = [...new Set(storeData.map(item => item.province))].filter(Boolean).sort();
+            const tiers = [...new Set(storeData.map(item => item.tier))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }));
+
+            const branchSelect = document.getElementById('filter-branch');
+            branchSelect.innerHTML = '<option value="All">Toàn quốc</option>';
+            branches.forEach(b => branchSelect.add(new Option(b, b)));
+
+            const provSelect = document.getElementById('filter-province');
+            provSelect.innerHTML = '<option value="All">Tất cả</option>';
+            provinces.forEach(p => provSelect.add(new Option(p, p)));
+
+            const tierSelect = document.getElementById('filter-tier');
+            tierSelect.innerHTML = '<option value="All">Tất cả</option>';
+            tiers.forEach(t => tierSelect.add(new Option(t === 'Chưa phân loại' ? t : `Tier ${t}`, t)));
+        }
+
+        function renderMapAndList(data) {
+            if (markersClusterGroup) markersClusterGroup.clearLayers();
+            storeMarkers = {};
+
+            data.forEach(store => {
+                if (store.lat && store.lng && markersClusterGroup) {
+                    const isT1 = store.tier === '1';
+                    const isT2 = store.tier === '2';
+                    const hexColor = isT1 ? '#ef4444' : (isT2 ? '#3b82f6' : '#10b981');
+
+                    const customIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color:${hexColor}; width:16px; height:16px; border-radius:50%; border:2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.5); position: relative; top: -8px; left: -8px;"></div>`,
+                        iconSize: [0, 0]
+                    });
+
+                    const growthColor = store.viewGrowth > 0 ? 'text-green-600' : (store.viewGrowth < 0 ? 'text-red-500' : 'text-gray-500');
+                    const growthIcon = store.viewGrowth > 0 ? '▲' : (store.viewGrowth < 0 ? '▼' : '-');
+                    const tierLabel = store.tier === 'Chưa phân loại' ? 'Chưa phân loại' : `Tier ${store.tier}`;
+                    const popupContent = `
+                        <div class="font-sans text-sm min-w-[220px] p-1">
+                            <h4 class="font-bold text-pnjBlue text-[13px] leading-tight mb-1">${store.name}</h4>
+                            <p class="text-gray-500 text-[10px] mb-2 pb-2 border-b border-gray-100">${store.branch} &bull; ${store.province}</p>
+                            <div class="grid grid-cols-2 gap-y-2 gap-x-2 text-[11px]">
+                                <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Total Views</span><span class="font-medium text-gray-800">${store.views.toLocaleString()}</span><span class="text-[9px] ${growthColor} font-bold ml-1">${growthIcon} ${Math.abs(store.viewGrowth).toFixed(1)}%</span></div>
+                                <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Chỉ đường</span><span class="font-medium text-gray-800">${store.dir.toLocaleString()}</span></div>
+                                <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Tin nhắn</span><span class="font-medium text-gray-800">${store.msg.toLocaleString()}</span></div>
+                                <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Rating GMB</span><span class="font-bold ${store.rating > 0 && store.rating < 4 ? 'text-red-500' : 'text-green-600'}">${store.rating.toFixed(2)} ⭐</span></div>
+                                <div class="col-span-2"><span class="block text-gray-400 text-[9px] uppercase font-bold">Tier</span><span class="font-medium text-gray-800">${tierLabel}</span></div>
+                            </div>
+                        </div>`;
+
+                    const marker = L.marker([store.lat, store.lng], { icon: customIcon }).bindPopup(popupContent);
+                    storeMarkers[store.id] = marker;
+                    markersClusterGroup.addLayer(marker);
+                }
+            });
+
+            if (map && data.length > 0) {
+                const lats = data.map(d => d.lat);
+                const lngs = data.map(d => d.lng);
+                map.fitBounds([[Math.min(...lats) - 0.1, Math.min(...lngs) - 0.1], [Math.max(...lats) + 0.1, Math.max(...lngs) + 0.1]], { padding: [50, 50], maxZoom: 13 });
+            }
+            renderStoreList(data);
+        }
+
+        function renderStoreList(filteredData) {
+            const container = document.getElementById('store-list-container');
+            const counter = document.getElementById('list-count');
+            container.innerHTML = '';
+            counter.innerText = filteredData.length;
+
+            const sortedData = [...filteredData].sort((a, b) => {
+                const aRisk = (a.rating > 0 && a.rating < 4.0) ? 1 : 0;
+                const bRisk = (b.rating > 0 && b.rating < 4.0) ? 1 : 0;
+                if (aRisk !== bRisk) return bRisk - aRisk;
+                return b.views - a.views;
+            });
+
+            if (sortedData.length === 0) {
+                container.innerHTML = '<div class="flex items-center justify-center h-full"><p class="text-xs text-gray-500 text-center">Không tìm thấy cửa hàng phù hợp với bộ lọc.</p></div>';
+                return;
+            }
+
+            sortedData.forEach(store => {
+                const isWatchlist = store.rating > 0 && store.rating < 4.0;
+                const div = document.createElement('div');
+                div.className = `p-2.5 mb-2 border rounded shadow-sm hover:shadow-md cursor-pointer transition grid grid-cols-12 gap-2 items-center ${isWatchlist ? 'bg-red-50 border-red-200 hover:border-red-400' : 'bg-white border-gray-100 hover:border-gray-300'}`;
+                div.onclick = () => flyToStore(store.id);
+                const growthColor = store.viewGrowth > 0 ? 'text-green-600' : (store.viewGrowth < 0 ? 'text-red-500' : 'text-gray-400');
+                const growthIcon = store.viewGrowth > 0 ? '▲' : (store.viewGrowth < 0 ? '▼' : '');
+                const tierLabel = store.tier === 'Chưa phân loại' ? 'Chưa phân loại' : `Tier ${store.tier}`;
+
+                div.innerHTML = `
+                    <div class="col-span-7">
+                        <div class="flex items-center gap-1">
+                            ${isWatchlist ? '<span title="Watchlist - Rating thấp" class="text-[10px]">🚨</span>' : ''}
+                            <h4 class="font-bold text-[11px] leading-tight truncate ${isWatchlist ? 'text-danger' : 'text-pnjBlue'}">${store.name}</h4>
+                        </div>
+                        <p class="text-[9px] text-gray-500 mt-0.5 truncate">${store.branch} | ${tierLabel}</p>
+                    </div>
+                    <div class="col-span-3 text-right">
+                        <div class="text-[10px] font-bold text-gray-800">${(store.views / 1000).toFixed(1)}k</div>
+                        <div class="text-[9px] ${growthColor} font-semibold">${growthIcon}${Math.abs(store.viewGrowth).toFixed(1)}%</div>
+                    </div>
+                    <div class="col-span-2 text-center">
+                        <span class="inline-block bg-white text-[10px] font-bold px-1.5 py-0.5 rounded border ${isWatchlist ? 'text-red-600 border-red-200' : 'text-green-600 border-green-100'}">${store.rating ? store.rating.toFixed(1) : '-'}</span>
+                    </div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function flyToStore(storeId) {
+            const store = storeData.find(s => s.id === storeId);
+            if (store && map && storeMarkers[storeId]) {
+                markersClusterGroup.zoomToShowLayer(storeMarkers[storeId], function () {
+                    map.flyTo([store.lat, store.lng], 16, { duration: 1.5 });
+                    setTimeout(() => storeMarkers[storeId].openPopup(), 1500);
+                });
+            }
+        }
+
+        function applyFilters() {
+            const branch = document.getElementById('filter-branch').value;
+            const province = document.getElementById('filter-province').value;
+            const tier = document.getElementById('filter-tier').value;
+
+            const filteredData = storeData.filter(store => {
+                return (branch === 'All' || store.branch === branch) &&
+                       (province === 'All' || store.province === province) &&
+                       (tier === 'All' || store.tier === tier);
+            });
+            renderMapAndList(filteredData);
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-branch').value = 'All';
+            document.getElementById('filter-province').value = 'All';
+            document.getElementById('filter-tier').value = 'All';
+            renderMapAndList(storeData);
+        }
+
+        window.onload = () => {
+            loadExternalData();
+            switchTab('tab-overview');
+        };
+    </script>
+</body>
+</html>
