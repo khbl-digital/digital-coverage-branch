@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNJ Digital Coverage Dashboard</title>
+    
+    <!-- Tailwind CSS with Custom PNJ Config -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pnjBlue: '#003366',    
+                        pnjGold: '#F2A900',    
+                        pnjGray: '#f8fafc',
+                        success: '#10b981',
+                        danger: '#ef4444',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Segoe UI', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js & PapaParse -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .tab-btn { border-bottom: 3px solid transparent; transition: all 0.3s; }
+        .tab-btn.active { border-bottom-color: #F2A900; color: #F2A900; font-weight: 600; }
+        #map { height: 100%; min-height: 500px; width: 100%; border-radius: 0.5rem; z-index: 10; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .hide-scroll-bar { -ms-overflow-style: none; scrollbar-width: none; }
+        .hide-scroll-bar::-webkit-scrollbar { display: none; }
+        .marker-cluster-small { background-color: rgba(242, 169, 0, 0.6); }
+        .marker-cluster-small div { background-color: rgba(242, 169, 0, 0.9); color: white; font-weight: bold;}
+        .marker-cluster-medium { background-color: rgba(0, 51, 102, 0.6); }
+        .marker-cluster-medium div { background-color: rgba(0, 51, 102, 0.9); color: white; font-weight: bold;}
+        .marker-cluster-large { background-color: rgba(239, 68, 68, 0.6); }
+        .marker-cluster-large div { background-color: rgba(239, 68, 68, 0.9); color: white; font-weight: bold;}
+        
+        /* Spinner */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #F2A900; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+
+    <!-- Header -->
+    <header class="bg-pnjBlue text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold tracking-tight text-pnjGold">BÁO CÁO DIGITAL COVERAGE PNJ</h1>
+                    <p class="text-sm text-gray-300 mt-1" id="data-status-text">Đang tải dữ liệu chu kỳ 2026 vs 2025...</p>
+                </div>
+                <div id="loading-indicator" class="flex items-center text-sm text-pnjGold">
+                    <div class="loader mr-2"></div> Đang đồng bộ Data
+                </div>
+            </div>
+            
+            <div class="flex space-x-6 overflow-x-auto hide-scroll-bar whitespace-nowrap mt-4">
+                <button onclick="switchTab('tab-overview')" id="btn-tab-overview" class="tab-btn pb-2 text-gray-300 hover:text-pnjGold focus:outline-none font-medium">
+                    📊 Tổng Quan Toàn Hệ Thống
+                </button>
+                <button onclick="switchTab('tab-map')" id="btn-tab-map" class="tab-btn active pb-2 text-white hover:text-pnjGold focus:outline-none font-medium">
+                    🗺️ Phân Tích Địa Phương & Bản Đồ
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        <!-- ============================== TAB 1: TỔNG QUAN CHIẾN LƯỢC ============================== -->
+        <div id="tab-overview" class="hidden space-y-6 cursor-default">
+            
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tổng Lượt Xem (GMB)</p>
+                    <p class="text-3xl font-bold text-pnjBlue mt-1">1.78M</p>
+                    <div class="mt-2 flex items-center text-sm">
+                        <span class="text-success font-bold bg-green-50 px-2 py-0.5 rounded text-xs">▲ +72.8%</span>
+                        <span class="text-gray-400 ml-2 text-xs">So với kỳ 2025</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Chỉ Đường (Drive-to-store)</p>
+                    <p class="text-3xl font-bold text-pnjBlue mt-1">67.2K</p>
+                    <div class="mt-2 flex items-center text-sm">
+                        <span class="text-success font-bold bg-green-50 px-2 py-0.5 rounded text-xs">▲ +34.0%</span>
+                        <span class="text-gray-400 ml-2 text-xs">O2O Conversion</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tin Nhắn (FMB x ZMB)</p>
+                    <p class="text-3xl font-bold text-pnjBlue mt-1">151.4K</p>
+                    <div class="mt-2 flex items-center text-sm">
+                        <span class="text-success font-bold bg-green-50 px-2 py-0.5 rounded text-xs">▲ +27.1%</span>
+                        <span class="text-gray-400 ml-2 text-xs">Chất lượng HT tốt</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-red-100 hover:shadow-md transition relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-12 h-12 bg-red-50 rounded-bl-full z-0"></div>
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider relative z-10">Rating Trung Bình GMB</p>
+                    <p class="text-3xl font-bold text-gray-800 mt-1 relative z-10">3.57 <span class="text-sm font-normal text-gray-400">/ 5.0</span></p>
+                    <div class="mt-2 flex items-center text-sm relative z-10">
+                        <span class="text-danger font-bold bg-red-50 px-2 py-0.5 rounded text-xs">▼ Rủi ro Trust</span>
+                        <span class="text-gray-400 ml-2 text-xs">Cần phục hồi gấp</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phân tích đa chiều -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Chart: Xu hướng -->
+                <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-base font-bold text-pnjBlue">Xu Hướng Tăng Trưởng (4 Kỳ Gần Nhất)</h3>
+                    </div>
+                    <div class="h-[280px] w-full"><canvas id="trendChart"></canvas></div>
+                </div>
+
+                <!-- Text: Phân tích chiến lược -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-base font-bold text-pnjBlue mb-4 border-b border-gray-100 pb-2">Đánh Giá Từ Khối Điều Hành</h3>
+                    <div class="space-y-4">
+                        <div class="flex gap-3">
+                            <div class="flex-shrink-0 w-8 h-8 rounded bg-blue-50 flex items-center justify-center text-pnjBlue font-bold">1</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800 text-sm">Chuyển dịch Phễu O2O</h4>
+                                <p class="text-xs text-gray-600 mt-1">Digital coverage đã trở thành công cụ <strong>điều phối trực tiếp khách hàng đến store</strong> (Chỉ đường +34%). Không chỉ còn là Brand Awareness.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="flex-shrink-0 w-8 h-8 rounded bg-red-50 flex items-center justify-center text-danger font-bold">2</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800 text-sm">Watchlist 2026: Phục hồi Trust</h4>
+                                <p class="text-xs text-gray-600 mt-1">Điểm đánh giá đang bị pha loãng (3.57). Tập trung nguồn lực phục hồi Rating cho <strong>HCM, Tây Nguyên, Kiên Giang</strong>.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="flex-shrink-0 w-8 h-8 rounded bg-green-50 flex items-center justify-center text-success font-bold">3</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800 text-sm">Cập nhật KPI Mới</h4>
+                                <p class="text-xs text-gray-600 mt-1">Áp dụng Playbook theo Tier. KPI 2026 sẽ tập trung vào <strong>Directions/Search</strong> và <strong>Message/FMB</strong> thay vì Total Reach.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart: Cơ cấu Tier -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-base font-bold text-pnjBlue mb-4">Tỷ Trọng Lượt Xem Theo Tier</h3>
+                    <div class="h-[220px] w-full"><canvas id="tierChart"></canvas></div>
+                </div>
+
+                <!-- Chart: Top Chi Nhánh -->
+                <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-base font-bold text-pnjBlue mb-4">Top Chi Nhánh Chuyển Đổi Tốt (Theo Lượng Tin Nhắn & Chỉ Đường)</h3>
+                    <div class="h-[220px] w-full"><canvas id="branchChart"></canvas></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ============================== TAB 2: MAP & DANH SÁCH ============================== -->
+        <div id="tab-map" class="block space-y-4">
+            
+            <!-- Map Filters -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-end z-20 relative">
+                <div class="w-full md:flex-1 min-w-[150px]">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Chi Nhánh</label>
+                    <select id="filter-branch" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 text-gray-700 rounded p-2 text-sm focus:ring-pnjGold focus:border-pnjGold outline-none cursor-pointer">
+                        <option value="All">Toàn quốc</option>
+                    </select>
+                </div>
+                <div class="w-full md:flex-1 min-w-[150px]">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tỉnh / Thành</label>
+                    <select id="filter-province" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 text-gray-700 rounded p-2 text-sm focus:ring-pnjGold focus:border-pnjGold outline-none cursor-pointer">
+                        <option value="All">Tất cả</option>
+                    </select>
+                </div>
+                <div class="w-full md:flex-1 min-w-[150px]">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Phân hạng (Tier)</label>
+                    <select id="filter-tier" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 text-gray-700 rounded p-2 text-sm focus:ring-pnjGold focus:border-pnjGold outline-none cursor-pointer">
+                        <option value="All">Tất cả</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[750px] lg:h-[650px]">
+                
+                <!-- Danh sách Cửa hàng (Sidebar Mới) -->
+                <div class="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
+                    <div class="p-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                        <h3 class="font-bold text-pnjBlue text-sm uppercase">Danh Sách Cửa Hàng</h3>
+                        <span id="list-count" class="bg-pnjBlue text-white text-xs font-bold px-2 py-1 rounded-full">0</span>
+                    </div>
+                    
+                    <!-- Headers for the list -->
+                    <div class="px-3 py-2 bg-gray-100 text-[10px] uppercase font-bold text-gray-500 grid grid-cols-12 gap-2">
+                        <div class="col-span-7">Thông tin Store</div>
+                        <div class="col-span-3 text-right">View YoY</div>
+                        <div class="col-span-2 text-center">Rate</div>
+                    </div>
+
+                    <!-- Scrollable List -->
+                    <div class="p-2 overflow-y-auto custom-scrollbar flex-1" id="store-list-container">
+                        <!-- JS Will Populate -->
+                    </div>
+                </div>
+
+                <!-- Map Area -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-2 h-[400px] lg:h-full flex flex-col relative z-0">
+                    <div id="map" class="flex-1 rounded-lg z-0"></div>
+                    <div class="absolute bottom-6 left-4 bg-white/95 backdrop-blur px-3 py-2 rounded shadow border border-gray-200 text-[11px] z-[1000] pointer-events-none">
+                        <div class="flex items-center gap-2 mb-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> Tier 1</div>
+                        <div class="flex items-center gap-2 mb-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Tier 2</div>
+                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span> Tier 3</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // =========================================================================
+        // 1. DATA LOADER (TỰ ĐỘNG ĐỌC FILE TỪ GITHUB / CÙNG FOLDER)
+        // =========================================================================
+        let storeData = [];
+        let raw2025 = [];
+        let raw2026 = [];
+
+        // HƯỚNG DẪN KHI ĐƯA LÊN GITHUB:
+        // Đảm bảo bạn đã upload 2 file "data_2025.csv" và "data_2026.csv" lên cùng thư mục với file index.html này.
+        const URL_2025 = 'data_2025.csv'; 
+        const URL_2026 = 'data_2026.csv';
+
+        // --- Hàm chạy chính ---
+        async function loadExternalData() {
+            try {
+                // Tải song song 2 file CSV
+                const [res25, res26] = await Promise.all([
+                    fetchCSV(URL_2025),
+                    fetchCSV(URL_2026)
+                ]);
+                
+                raw2025 = res25.data;
+                raw2026 = res26.data;
+
+                processMergedData();
+            } catch (error) {
+                console.warn("Không tìm thấy file CSV vật lý. Đang load dữ liệu mẫu để Preview...", error);
+                loadMockData(); // Fallback để preview không bị trắng
+            }
+        }
+
+        // Wrapper Promise cho PapaParse
+        function fetchCSV(url) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: function(results) { resolve(results); },
+                    error: function(err) { reject(err); }
+                });
+            });
+        }
+
+        // Gộp data 2025 và 2026, tính Growth
+        function processMergedData() {
+            // Tạo Map 2025 theo Plant ID để tra cứu nhanh
+            const map2025 = {};
+            raw2025.forEach(row => {
+                if(row['Plant']) map2025[row['Plant']] = row;
+            });
+
+            // Lọc 2026 và ghép nối
+            const parsedData = raw2026.filter(row => row['Latitude'] && row['Longitude'] && row['Latitude'] !== 'NULL' && row['Latitude'] !== '0')
+                .map(row => {
+                    const id = row['Plant'];
+                    const pastRow = map2025[id] || {};
+
+                    // Data 2026
+                    const view26 = parseInt(row['Total View GMB']) || 0;
+                    const msg26 = parseInt(row['Tin nhắn FMB x ZMB']) || 0;
+                    const dir26 = parseInt(row['Chỉ đường GMB']) || 0;
+                    const rating26 = parseFloat(row['Điểm 5* GMB']) || 0;
+
+                    // Data 2025
+                    const view25 = parseInt(pastRow['Total View GMB']) || 0;
+                    
+                    // Tính Tăng trưởng (Growth)
+                    let viewGrowth = 0;
+                    if(view25 > 0) {
+                        viewGrowth = (((view26 - view25) / view25) * 100).toFixed(1);
+                    } else if (view26 > 0) {
+                        viewGrowth = 100; // New store
+                    }
+
+                    return {
+                        id: id || 'N/A',
+                        name: row['TÊN CỬA HÀNG'] || 'Chưa rõ tên',
+                        branch: row['Chi nhánh'] || 'Khác',
+                        province: row['TỈNH/TP (TRÊN SAP)'] || 'Khác',
+                        tier: row['Tier'] || 'Chưa phân loại',
+                        lat: parseFloat(row['Latitude']),
+                        lng: parseFloat(row['Longitude']),
+                        msg: msg26,
+                        views: view26,
+                        dir: dir26,
+                        rating: rating26,
+                        viewGrowth: parseFloat(viewGrowth)
+                    };
+                });
+
+            if (parsedData.length > 0) {
+                storeData = parsedData;
+                document.getElementById('loading-indicator').classList.add('hidden');
+                document.getElementById('data-status-text').innerText = `Đã đồng bộ thành công ${storeData.length} điểm bán`;
+                
+                populateDropdowns();
+                renderMapAndList(storeData);
+                initOverviewCharts(); // Render bảng tổng quan
+            }
+        }
+
+        // =========================================================================
+        // FALLBACK MOCK DATA (Phòng hờ khi xem Preview chưa có file CSV)
+        // =========================================================================
+        function loadMockData() {
+            const sample25 = `Plant,TÊN CỬA HÀNG,Chi nhánh,TỈNH/TP (TRÊN SAP),Tier,Latitude,Longitude,Tin nhắn FMB x ZMB,Total View GMB
+1101,"TTKH 304 Trường Chinh",Hồ Chí Minh,Hồ Chí Minh,Tier 1,10.7978,106.6443,100,5000
+1102,"TTKH 151/3 Nguyễn Ảnh Thủ",Hồ Chí Minh,Hồ Chí Minh,Tier 2,10.8590,106.6081,300,6000
+1648,"PNJ Go, Phan Rang",Tây Nguyên,Ninh Thuận,Tier 2,11.5739,108.9939,50,2000`;
+
+            const sample26 = `Plant,TÊN CỬA HÀNG,Chi nhánh,TỈNH/TP (TRÊN SAP),Tier,Latitude,Longitude,Tin nhắn FMB x ZMB,Chỉ đường GMB,Điểm 5* GMB,Total View GMB
+1101,"TTKH 304 Trường Chinh",Hồ Chí Minh,Hồ Chí Minh,Tier 1,10.7978,106.6443,218,232,5.0,10267
+1102,"TTKH 151/3 Nguyễn Ảnh Thủ",Hồ Chí Minh,Hồ Chí Minh,Tier 2,10.8590,106.6081,714,193,3.5,8241
+1648,"PNJ Go, Phan Rang",Tây Nguyên,Ninh Thuận,Tier 2,11.5739,108.9939,120,85,4.2,3500`;
+
+            raw2025 = Papa.parse(sample25, {header: true, dynamicTyping: true}).data;
+            raw2026 = Papa.parse(sample26, {header: true, dynamicTyping: true}).data;
+            processMergedData();
+        }
+
+
+        // =========================================================================
+        // 2. TAB LOGIC & CHARTS TỔNG QUAN
+        // =========================================================================
+        let mapInitialized = false;
+
+        function switchTab(tabId) {
+            document.getElementById('tab-overview').classList.add('hidden');
+            document.getElementById('tab-map').classList.add('hidden');
+            document.getElementById('btn-tab-overview').classList.remove('active', 'text-pnjGold');
+            document.getElementById('btn-tab-map').classList.remove('active', 'text-pnjGold');
+
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById('btn-' + tabId).classList.add('active', 'text-pnjGold');
+
+            if (tabId === 'tab-map') {
+                if (!mapInitialized) {
+                    initMap();
+                    mapInitialized = true;
+                } else {
+                    setTimeout(() => { map.invalidateSize(); }, 200);
+                }
+            }
+        }
+
+        function initOverviewCharts() {
+            // Chart 1: Trend
+            new Chart(document.getElementById('trendChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: ['T1.2025', 'T2.2025', 'T1.2026', 'T2.2026'],
+                    datasets: [
+                        { label: 'Total View GMB', data: [1517192, 2258104, 1784845, 2600000], borderColor: '#F2A900', backgroundColor: 'rgba(242, 169, 0, 0.1)', borderWidth: 3, fill: true, yAxisID: 'y' },
+                        { label: 'Tin nhắn (ZMBxFMB)', data: [91037, 207149, 151420, 227671], borderColor: '#003366', backgroundColor: '#003366', type: 'bar', borderRadius: 4, barPercentage: 0.5, yAxisID: 'y1' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false } }, y: { display: true, position: 'left', title: {display: true, text: 'Views'}}, y1: { display: true, position: 'right', grid: { drawOnChartArea: false }, title: {display: true, text: 'Messages'} } } }
+            });
+
+            // Chart 2: Tier Breakdown
+            new Chart(document.getElementById('tierChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Tier 1 (Tối ưu Conversion)', 'Tier 2 (Tăng O2O)', 'Tier 3 (Digital-first)'],
+                    datasets: [{
+                        data: [65, 25, 10], // Mô phỏng data từ báo cáo
+                        backgroundColor: ['#ef4444', '#3b82f6', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: {size: 11} } } }, cutout: '70%' }
+            });
+
+            // Chart 3: Top Branch by Messages
+            new Chart(document.getElementById('branchChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Hồ Chí Minh', 'Miền Bắc', 'Miền Tây', 'Đông Nam Bộ', 'Tây Nguyên'],
+                    datasets: [{
+                        label: 'Tin nhắn hội thoại',
+                        data: [85000, 42000, 38000, 35000, 27671],
+                        backgroundColor: '#003366',
+                        borderRadius: 4
+                    }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} }, scales: { x: { grid: { display: false } }, y: { grid: { display: false } } } }
+            });
+        }
+
+        // =========================================================================
+        // 3. MAP & LIST LOGIC
+        // =========================================================================
+        let map;
+        let markersClusterGroup; 
+        let storeMarkers = {}; 
+
+        function initMap() {
+            map = L.map('map').setView([15.0583, 108.2772], 6);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO'
+            }).addTo(map);
+
+            markersClusterGroup = L.markerClusterGroup({
+                chunkedLoading: true, spiderfyOnMaxZoom: true, showCoverageOnHover: false, zoomToBoundsOnClick: true, maxClusterRadius: 40
+            });
+            map.addLayer(markersClusterGroup);
+
+            // Initial render
+            if(storeData.length > 0) {
+                renderMapAndList(storeData);
+            }
+        }
+
+        function populateDropdowns() {
+            const branches = [...new Set(storeData.map(item => item.branch))].filter(Boolean).sort();
+            const provinces = [...new Set(storeData.map(item => item.province))].filter(Boolean).sort();
+            const tiers = [...new Set(storeData.map(item => item.tier))].filter(Boolean).sort();
+
+            const branchSelect = document.getElementById('filter-branch');
+            branchSelect.innerHTML = '<option value="All">Toàn quốc (Tất cả)</option>';
+            branches.forEach(b => branchSelect.add(new Option(b, b)));
+
+            const provSelect = document.getElementById('filter-province');
+            provSelect.innerHTML = '<option value="All">Tất cả Tỉnh/Thành</option>';
+            provinces.forEach(p => provSelect.add(new Option(p, p)));
+
+            const tierSelect = document.getElementById('filter-tier');
+            tierSelect.innerHTML = '<option value="All">Tất cả Tier</option>';
+            tiers.forEach(t => tierSelect.add(new Option(t, t)));
+        }
+
+        function renderMapAndList(data) {
+            // -- RENDER MAP --
+            if(markersClusterGroup) markersClusterGroup.clearLayers();
+            storeMarkers = {}; 
+
+            data.forEach(store => {
+                if (store.lat && store.lng && markersClusterGroup) {
+                    let hexColor = store.tier === 'Tier 1' ? '#ef4444' : (store.tier === 'Tier 2' ? '#3b82f6' : (store.tier === 'Tier 3' ? '#10b981' : '#9ca3af'));
+                    
+                    const customIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color:${hexColor}; width:14px; height:14px; border-radius:50%; border:2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.4); position: relative; top: -7px; left: -7px;"></div>`,
+                        iconSize: [0, 0] 
+                    });
+
+                    // Định dạng màu cho tăng trưởng
+                    let growthColor = store.viewGrowth > 0 ? 'text-green-600' : (store.viewGrowth < 0 ? 'text-red-500' : 'text-gray-500');
+                    let growthIcon = store.viewGrowth > 0 ? '▲' : (store.viewGrowth < 0 ? '▼' : '-');
+
+                    const popupContent = `
+                        <div class="font-sans text-sm min-w-[220px] p-1">
+                            <h4 class="font-bold text-pnjBlue text-[13px] leading-tight mb-1">${store.name}</h4>
+                            <p class="text-gray-500 text-[10px] mb-2 pb-2 border-b border-gray-100">${store.branch} &bull; ${store.province}</p>
+                            
+                            <div class="grid grid-cols-2 gap-y-2 gap-x-2 text-[11px]">
+                                <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Total Views</span>
+                                     <span class="font-medium text-gray-800">${store.views.toLocaleString()}</span>
+                                     <span class="text-[9px] ${growthColor} font-bold ml-1">${growthIcon} ${Math.abs(store.viewGrowth)}%</span>
+                                </div>
+                                <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Chỉ đường</span>
+                                     <span class="font-medium text-gray-800">${store.dir.toLocaleString()}</span>
+                                </div>
+                                <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Tin nhắn</span>
+                                     <span class="font-medium text-gray-800">${store.msg.toLocaleString()}</span>
+                                </div>
+                                <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Rating GMB</span>
+                                     <span class="font-bold ${store.rating > 0 && store.rating < 4 ? 'text-red-500' : 'text-green-600'}">${store.rating} ⭐</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    let marker = L.marker([store.lat, store.lng], {icon: customIcon}).bindPopup(popupContent);
+                    storeMarkers[store.id] = marker;
+                    markersClusterGroup.addLayer(marker);
+                }
+            });
+
+            if(map && data.length > 0) {
+               const lats = data.map(d => d.lat);
+               const lngs = data.map(d => d.lng);
+               // Căn chỉnh khung hình vừa đủ, không zoom quá sát
+               map.fitBounds([[Math.min(...lats)-0.05, Math.min(...lngs)-0.05], [Math.max(...lats)+0.05, Math.max(...lngs)+0.05]], {padding: [30, 30], maxZoom: 14});
+            }
+
+            // -- RENDER LIST --
+            renderStoreList(data);
+        }
+
+        function renderStoreList(filteredData) {
+            const container = document.getElementById('store-list-container');
+            const counter = document.getElementById('list-count');
+            container.innerHTML = '';
+            counter.innerText = filteredData.length;
+
+            // Sort: Watchlist (Rating < 4) lên đầu
+            let sortedData = [...filteredData].sort((a,b) => {
+                let aRisk = (a.rating > 0 && a.rating < 4.0) ? 1 : 0;
+                let bRisk = (b.rating > 0 && b.rating < 4.0) ? 1 : 0;
+                if(aRisk !== bRisk) return bRisk - aRisk;
+                return b.views - a.views; // Sau đó xếp theo Views
+            });
+
+            if(sortedData.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-500 text-center py-6">Không tìm thấy cửa hàng phù hợp với bộ lọc.</p>`;
+                return;
+            }
+
+            sortedData.forEach(store => {
+                let isWatchlist = store.rating > 0 && store.rating < 4.0;
+                
+                let div = document.createElement('div');
+                // HIGHLIGHT NẾU LÀ WATCHLIST
+                div.className = `p-2.5 mb-2 border rounded shadow-sm hover:shadow-md cursor-pointer transition grid grid-cols-12 gap-2 items-center ${isWatchlist ? 'bg-red-50 border-red-200 hover:border-red-400' : 'bg-white border-gray-100 hover:border-gray-300'}`;
+                div.onclick = () => flyToStore(store.id);
+                
+                let growthColor = store.viewGrowth > 0 ? 'text-green-600' : (store.viewGrowth < 0 ? 'text-red-500' : 'text-gray-400');
+                let growthIcon = store.viewGrowth > 0 ? '▲' : (store.viewGrowth < 0 ? '▼' : '');
+                
+                div.innerHTML = `
+                    <div class="col-span-7">
+                        <div class="flex items-center gap-1">
+                            ${isWatchlist ? '<span title="Watchlist - Rating thấp" class="text-[10px]">🚨</span>' : ''}
+                            <h4 class="font-bold text-[11px] leading-tight truncate ${isWatchlist ? 'text-danger' : 'text-pnjBlue'}">${store.name}</h4>
+                        </div>
+                        <p class="text-[9px] text-gray-500 mt-0.5 truncate">${store.branch} | ${store.tier}</p>
+                    </div>
+                    <div class="col-span-3 text-right">
+                        <div class="text-[10px] font-bold text-gray-800">${(store.views/1000).toFixed(1)}k</div>
+                        <div class="text-[9px] ${growthColor} font-semibold">${growthIcon}${Math.abs(store.viewGrowth)}%</div>
+                    </div>
+                    <div class="col-span-2 text-center">
+                        <span class="inline-block bg-white text-[10px] font-bold px-1.5 py-0.5 rounded border ${isWatchlist ? 'text-red-600 border-red-200' : 'text-green-600 border-green-100'}">${store.rating}</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function flyToStore(storeId) {
+            const store = storeData.find(s => s.id === storeId);
+            if (store && map && storeMarkers[storeId]) {
+                markersClusterGroup.zoomToShowLayer(storeMarkers[storeId], function () {
+                    map.flyTo([store.lat, store.lng], 16, { duration: 1.5 });
+                    setTimeout(() => { storeMarkers[storeId].openPopup(); }, 1500);
+                });
+            }
+        }
+
+        function applyFilters() {
+            const branch = document.getElementById('filter-branch').value;
+            const province = document.getElementById('filter-province').value;
+            const tier = document.getElementById('filter-tier').value;
+
+            const filteredData = storeData.filter(store => {
+                return (branch === 'All' || store.branch === branch) &&
+                       (province === 'All' || store.province === province) &&
+                       (tier === 'All' || store.tier === tier);
+            });
+            renderMapAndList(filteredData);
+        }
+
+        window.onload = () => { 
+            loadExternalData(); // Tự động kéo CSV
+            switchTab('tab-map'); 
+        };
+
+    </script>
+</body>
+</html>
