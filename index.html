@@ -131,12 +131,18 @@
                         <div class="kpi-card rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Chỉ Đường (Drive-to-store)</p>
                             <p class="text-3xl font-black text-pnjBlue" id="kpi-dir">0</p>
-                            <div class="mt-2 flex items-center justify-between"><span id="kpi-dir-growth" class="font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500">0% YoY</span><span class="text-xl">🗺️</span></div>
+                            <div class="mt-2 flex items-center justify-between">
+                                <span id="kpi-dir-growth" class="font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500">0% YoY</span>
+                                <span class="text-xl">🗺️</span>
+                            </div>
                         </div>
                         <div class="kpi-card rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition">
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Tin Nhắn (FMB x ZMB)</p>
                             <p class="text-3xl font-black text-pnjBlue" id="kpi-msg">0</p>
-                            <div class="mt-2 flex items-center justify-between"><span id="kpi-msg-growth" class="font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500">0% YoY</span><span class="text-xl">💬</span></div>
+                            <div class="mt-2 flex items-center justify-between">
+                                <span id="kpi-msg-growth" class="font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500">0% YoY</span>
+                                <span class="text-xl">💬</span>
+                            </div>
                         </div>
                         <div class="bg-red-50 rounded-xl p-5 shadow-sm border border-red-200 hover:shadow-md transition">
                             <p class="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-1">Rating GMB Trung Bình</p>
@@ -282,7 +288,7 @@
                 <div class="w-full md:w-auto mt-2 md:mt-0"><button onclick="resetFilters()" class="w-full md:w-auto bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded text-sm transition flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Khôi Phục Toàn Quốc</button></div>
             </div>
 
-            <!-- Bản Đồ Kèm Sidebar -->
+            <!-- Bản Đồ Kèm Sidebar Nổi -->
             <div class="relative w-full flex flex-col lg:flex-row h-[800px] lg:h-[700px] rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-white">
                 
                 <!-- Cột Danh Sách Cửa Hàng -->
@@ -310,10 +316,10 @@
 
     <script>
         // =========================================================================
-        // 1. CORE DATA LOADER (HỖ TRỢ FUZZY MATCH & KHẮC PHỤC LỖI)
+        // 1. CORE DATA LOADER
         // =========================================================================
-        let storeData = [];     // Chỉ lấy các dòng có Latitude/Longitude hợp lệ cho Bản Đồ
-        let overallData = [];   // Lấy TOÀN BỘ 100% dữ liệu để không thất thoát KPI
+        let storeData = [];     
+        let overallData = [];   
         let raw2025 = [];
         let raw2026 = [];
         let mapInitialized = false;
@@ -322,7 +328,6 @@
         const URL_2026 = 'data_2026.csv';
 
         async function loadExternalData() {
-            // Bypass logic: Khi chạy local offline (file://), hiển thị UI yêu cầu upload file để tránh lỗi CORS
             if (window.location.protocol === 'file:') {
                 showFallbackUploader();
                 return;
@@ -334,7 +339,7 @@
                 raw2026 = res26.data;
                 processMergedData();
             } catch (error) {
-                console.warn("Không thể kéo CSV tự động. Có thể do thiếu file trên server. Đang mở uploader thủ công.", error);
+                console.warn("Không thể kéo CSV tự động.", error);
                 showFallbackUploader();
             }
         }
@@ -344,8 +349,8 @@
             if(loaderContainer) {
                 loaderContainer.innerHTML = `
                     <div class="bg-red-500/90 text-white px-4 py-2 rounded shadow-lg backdrop-blur flex flex-col items-end border border-red-400">
-                        <span class="font-bold text-sm mb-1">⚠️ Đang mở Offline hoặc thiếu File trên Server</span>
-                        <span class="text-[11px] mb-2 text-red-100">Vui lòng chọn thủ công 2 file CSV để xem báo cáo:</span>
+                        <span class="font-bold text-sm mb-1">⚠️ Đang mở Offline (Trình duyệt chặn file)</span>
+                        <span class="text-[11px] mb-2 text-red-100">Vui lòng chọn thủ công 2 file CSV của bạn:</span>
                         <input type="file" multiple accept=".csv" class="text-xs w-full max-w-[200px]" onchange="handleManualUpload(event)">
                     </div>
                 `;
@@ -378,7 +383,6 @@
             return new Promise((resolve, reject) => {
                 Papa.parse(url, { download: true, header: true, dynamicTyping: true, skipEmptyLines: true,
                     complete: function(results) { 
-                        // Kiểm tra nếu web server trả về file HTML thay vì CSV (như lỗi trang 404 Github)
                         if(results.data && results.data.length > 0 && String(Object.keys(results.data[0])[0]).includes('<html')) {
                             reject(new Error("File trả về là HTML, không phải CSV"));
                         } else {
@@ -390,7 +394,6 @@
             });
         }
 
-        // HÀM TÌM CỘT THÔNG MINH: Bypass các lỗi khoảng trắng dư, sai font chữ
         function getSafeCol(row, possibleKeys) {
             if(!row) return undefined;
             for (let pk of possibleKeys) {
@@ -407,7 +410,6 @@
             return undefined;
         }
 
-        // HÀM ÉP SỐ AN TOÀN: Bảo vệ code khỏi crash nếu CSV chứa chữ trong cột số
         function cleanNumber(val) {
             if (typeof val === 'number') return val;
             if (!val) return 0;
@@ -437,6 +439,7 @@
                 const msg26 = cleanNumber(getSafeCol(row, ['Tin nhắn FMB x ZMB', 'Tin nhắn', 'Message']));
                 const dir26 = cleanNumber(getSafeCol(row, ['Chỉ đường GMB', 'Chỉ đường', 'Direction']));
                 const rating26 = cleanNumber(getSafeCol(row, ['Điểm 5* GMB', 'Điểm 5*', 'Rating']));
+                
                 const view25 = cleanNumber(getSafeCol(pastRow, ['Total View GMB', 'Total View', 'Views']));
                 const msg25 = cleanNumber(getSafeCol(pastRow, ['Tin nhắn FMB x ZMB', 'Tin nhắn', 'Message']));
                 const dir25 = cleanNumber(getSafeCol(pastRow, ['Chỉ đường GMB', 'Chỉ đường', 'Direction']));
@@ -446,22 +449,21 @@
                 if(msg25 > 0) msgGrowth = (((msg26 - msg25) / msg25) * 100).toFixed(1); else if (msg26 > 0) msgGrowth = 100;
                 if(dir25 > 0) dirGrowth = (((dir26 - dir25) / dir25) * 100).toFixed(1); else if (dir26 > 0) dirGrowth = 100;
 
-                return {
-                    id: id || 'N/A',
-                    name: row['TÊN CỬA HÀNG'] || 'Chưa rõ tên',
-                    branch: row['Chi nhánh'] || 'Khác',
-                    province: row['TỈNH/TP (TRÊN SAP)'] || 'Khác',
-                    tier: row['Tier'] || 'Chưa phân loại',
-                    lat: parseFloat(row['Latitude']), lng: parseFloat(row['Longitude']),
-                    msg: msg26, views: view26, dir: dir26, rating: rating26,
-                    viewGrowth: parseFloat(viewGrowth),
-                    msgGrowth: parseFloat(msgGrowth),
-                    dirGrowth: parseFloat(dirGrowth),
-                    view25: view25 
-                };
-            });
+                let tierRaw = String(getSafeCol(row, ['Tier', 'Phân hạng']) || '3').toLowerCase();
+                let t = 'Tier 3';
+                if(tierRaw.includes('1') || tierRaw === 'tier 1' || tierRaw === '1') t = 'Tier 1';
+                else if(tierRaw.includes('2') || tierRaw === 'tier 2' || tierRaw === '2') t = 'Tier 2';
 
-            if (parsedData.length > 0) {
+                let latRaw = parseFloat(getSafeCol(row, ['Latitude', 'Lat']));
+                let lngRaw = parseFloat(getSafeCol(row, ['Longitude', 'Lng', 'Long']));
+                let isValidCoord = !isNaN(latRaw) && !isNaN(lngRaw) && latRaw !== 0 && lngRaw !== 0;
+
+                let branchRaw = getSafeCol(row, ['Chi nhánh', 'Branch']);
+                let branch = (!branchRaw) ? 'Khác' : String(branchRaw).trim();
+                
+                let provRaw = getSafeCol(row, ['TỈNH/TP (TRÊN SAP)', 'Tỉnh', 'TP']);
+                let province = (!provRaw) ? 'Khác' : String(provRaw).trim();
+
                 let itemObj = {
                     id: id,
                     name: String(getSafeCol(row, ['TÊN CỬA HÀNG', 'Name', 'Store']) || 'Chưa rõ tên'),
@@ -476,7 +478,11 @@
                     dir: dir26, 
                     rating: rating26,
                     viewGrowth: parseFloat(viewGrowth),
-                    view25: view25, msg25: msg25, dir25: dir25 
+                    msgGrowth: parseFloat(msgGrowth),
+                    dirGrowth: parseFloat(dirGrowth),
+                    view25: view25,
+                    msg25: msg25,
+                    dir25: dir25 
                 };
 
                 allData.push(itemObj);
@@ -499,7 +505,7 @@
         }
 
         // =========================================================================
-        // 2. DASHBOARD OVERVIEW LOGIC (TÍNH TOÁN TRÊN TỔNG DỮ LIỆU)
+        // 2. DASHBOARD OVERVIEW LOGIC
         // =========================================================================
         let chartInstances = {};
 
@@ -548,15 +554,18 @@
 
             const growthEl = document.getElementById('kpi-views-growth');
             if(viewGrowth > 0) { growthEl.innerText = `▲ +${viewGrowth}% YoY`; growthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700"; }
-            else { growthEl.innerText = `▼ ${viewGrowth}% YoY`; growthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700"; }
+            else if (viewGrowth < 0) { growthEl.innerText = `▼ ${viewGrowth}% YoY`; growthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700"; }
+            else { growthEl.innerText = `${viewGrowth}% YoY`; growthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500"; }
 
             const msgGrowthEl = document.getElementById('kpi-msg-growth');
             if(msgGrowth > 0) { msgGrowthEl.innerText = `▲ +${msgGrowth}% YoY`; msgGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700"; }
-            else { msgGrowthEl.innerText = `▼ ${msgGrowth}% YoY`; msgGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700"; }
+            else if (msgGrowth < 0) { msgGrowthEl.innerText = `▼ ${msgGrowth}% YoY`; msgGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700"; }
+            else { msgGrowthEl.innerText = `${msgGrowth}% YoY`; msgGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500"; }
 
             const dirGrowthEl = document.getElementById('kpi-dir-growth');
             if(dirGrowth > 0) { dirGrowthEl.innerText = `▲ +${dirGrowth}% YoY`; dirGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700"; }
-            else { dirGrowthEl.innerText = `▼ ${dirGrowth}% YoY`; dirGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700"; }
+            else if (dirGrowth < 0) { dirGrowthEl.innerText = `▼ ${dirGrowth}% YoY`; dirGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-700"; }
+            else { dirGrowthEl.innerText = `${dirGrowth}% YoY`; dirGrowthEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500"; }
 
             const rateStatusEl = document.getElementById('kpi-rating-status');
             if(avgRating >= 4.5) { rateStatusEl.innerText = "Chất lượng Ổn định"; rateStatusEl.className = "font-bold px-2 py-0.5 rounded text-[11px] bg-green-100 text-green-700"; }
@@ -628,7 +637,7 @@
         }
 
         // =========================================================================
-        // 3. MAP & LIST LOGIC (DÙNG RIÊNG STOREDATA CHỈ CHỨA GPS)
+        // 3. MAP & LIST LOGIC 
         // =========================================================================
         let map;
         let markersClusterGroup; 
@@ -663,6 +672,15 @@
             const tierSelect = document.getElementById('filter-tier');
             tierSelect.innerHTML = '<option value="All">Tất cả</option>';
             tiers.forEach(t => tierSelect.add(new Option(t, t)));
+        }
+
+        function renderMapAndList(data) {
+            if(markersClusterGroup) markersClusterGroup.clearLayers();
+            storeMarkers = {}; 
+
+            data.forEach(store => {
+                if (markersClusterGroup) {
+                    let isT1 = store.tier === 'Tier 1', isT2 = store.tier === 'Tier 2';
                     let hexColor = isT1 ? '#ef4444' : (isT2 ? '#3b82f6' : '#10b981');
                     
                     const customIcon = L.divIcon({
@@ -707,24 +725,19 @@
 
                     let marker = L.marker([store.lat, store.lng], {icon: customIcon}).bindPopup(popupContent);
                     
-                    // Sự kiện Click vào Marker: Update Filter & List
                     marker.on('click', function() {
-                        // 1. Cập nhật các ô Filter dropdown
                         document.getElementById('filter-branch').value = store.branch;
                         document.getElementById('filter-province').value = store.province;
                         document.getElementById('filter-tier').value = store.tier;
 
-                        // 2. Lọc danh sách data theo filter mới
                         const filteredData = storeData.filter(s => {
                             return (s.branch === store.branch) &&
                                    (s.province === store.province) &&
                                    (s.tier === store.tier);
                         });
 
-                        // 3. Render lại danh sách cửa hàng
                         renderStoreList(filteredData);
 
-                        // 4. Cuộn tới cửa hàng vừa click và highlight
                         setTimeout(() => {
                             const listItem = document.getElementById('store-item-' + store.id);
                             if(listItem) {
