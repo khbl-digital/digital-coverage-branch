@@ -437,31 +437,31 @@
                 const msg26 = cleanNumber(getSafeCol(row, ['Tin nhắn FMB x ZMB', 'Tin nhắn', 'Message']));
                 const dir26 = cleanNumber(getSafeCol(row, ['Chỉ đường GMB', 'Chỉ đường', 'Direction']));
                 const rating26 = cleanNumber(getSafeCol(row, ['Điểm 5* GMB', 'Điểm 5*', 'Rating']));
-                
                 const view25 = cleanNumber(getSafeCol(pastRow, ['Total View GMB', 'Total View', 'Views']));
                 const msg25 = cleanNumber(getSafeCol(pastRow, ['Tin nhắn FMB x ZMB', 'Tin nhắn', 'Message']));
                 const dir25 = cleanNumber(getSafeCol(pastRow, ['Chỉ đường GMB', 'Chỉ đường', 'Direction']));
                 
-                let viewGrowth = 0;
-                if(view25 > 0) viewGrowth = (((view26 - view25) / view25) * 100).toFixed(1);
-                else if (view26 > 0) viewGrowth = 100;
+                let viewGrowth = 0, msgGrowth = 0, dirGrowth = 0;
+                if(view25 > 0) viewGrowth = (((view26 - view25) / view25) * 100).toFixed(1); else if (view26 > 0) viewGrowth = 100;
+                if(msg25 > 0) msgGrowth = (((msg26 - msg25) / msg25) * 100).toFixed(1); else if (msg26 > 0) msgGrowth = 100;
+                if(dir25 > 0) dirGrowth = (((dir26 - dir25) / dir25) * 100).toFixed(1); else if (dir26 > 0) dirGrowth = 100;
 
-                // XỬ LÝ TIER: An toàn cả khi file CSV ghi số (1) hay chữ (Tier 1)
-                let tierRaw = String(getSafeCol(row, ['Tier', 'Phân hạng']) || '3').toLowerCase();
-                let t = 'Tier 3';
-                if(tierRaw.includes('1') || tierRaw === 'tier 1' || tierRaw === '1') t = 'Tier 1';
-                else if(tierRaw.includes('2') || tierRaw === 'tier 2' || tierRaw === '2') t = 'Tier 2';
+                return {
+                    id: id || 'N/A',
+                    name: row['TÊN CỬA HÀNG'] || 'Chưa rõ tên',
+                    branch: row['Chi nhánh'] || 'Khác',
+                    province: row['TỈNH/TP (TRÊN SAP)'] || 'Khác',
+                    tier: row['Tier'] || 'Chưa phân loại',
+                    lat: parseFloat(row['Latitude']), lng: parseFloat(row['Longitude']),
+                    msg: msg26, views: view26, dir: dir26, rating: rating26,
+                    viewGrowth: parseFloat(viewGrowth),
+                    msgGrowth: parseFloat(msgGrowth),
+                    dirGrowth: parseFloat(dirGrowth),
+                    view25: view25 
+                };
+            });
 
-                let latRaw = parseFloat(getSafeCol(row, ['Latitude', 'Lat']));
-                let lngRaw = parseFloat(getSafeCol(row, ['Longitude', 'Lng', 'Long']));
-                let isValidCoord = !isNaN(latRaw) && !isNaN(lngRaw) && latRaw !== 0 && lngRaw !== 0;
-
-                let branchRaw = getSafeCol(row, ['Chi nhánh', 'Branch']);
-                let branch = (!branchRaw) ? 'Khác' : String(branchRaw).trim();
-                
-                let provRaw = getSafeCol(row, ['TỈNH/TP (TRÊN SAP)', 'Tỉnh', 'TP']);
-                let province = (!provRaw) ? 'Khác' : String(provRaw).trim();
-
+            if (parsedData.length > 0) {
                 let itemObj = {
                     id: id,
                     name: String(getSafeCol(row, ['TÊN CỬA HÀNG', 'Name', 'Store']) || 'Chưa rõ tên'),
@@ -663,15 +663,7 @@
             const tierSelect = document.getElementById('filter-tier');
             tierSelect.innerHTML = '<option value="All">Tất cả</option>';
             tiers.forEach(t => tierSelect.add(new Option(t, t)));
-        }
-
-        function renderMapAndList(data) {
-            if(markersClusterGroup) markersClusterGroup.clearLayers();
-            storeMarkers = {}; 
-
-            data.forEach(store => {
-                if (markersClusterGroup) {
-                    let hexColor = store.tier === 'Tier 1' ? '#ef4444' : (store.tier === 'Tier 2' ? '#3b82f6' : '#10b981');
+                    let hexColor = isT1 ? '#ef4444' : (isT2 ? '#3b82f6' : '#10b981');
                     
                     const customIcon = L.divIcon({
                         className: 'custom-div-icon',
@@ -681,6 +673,12 @@
 
                     let growthColor = store.viewGrowth > 0 ? 'text-green-600' : (store.viewGrowth < 0 ? 'text-red-500' : 'text-gray-500');
                     let growthIcon = store.viewGrowth > 0 ? '▲' : (store.viewGrowth < 0 ? '▼' : '-');
+
+                    let dirGrowthColor = store.dirGrowth > 0 ? 'text-green-600' : (store.dirGrowth < 0 ? 'text-red-500' : 'text-gray-500');
+                    let dirGrowthIcon = store.dirGrowth > 0 ? '▲' : (store.dirGrowth < 0 ? '▼' : '-');
+
+                    let msgGrowthColor = store.msgGrowth > 0 ? 'text-green-600' : (store.msgGrowth < 0 ? 'text-red-500' : 'text-gray-500');
+                    let msgGrowthIcon = store.msgGrowth > 0 ? '▲' : (store.msgGrowth < 0 ? '▼' : '-');
 
                     const popupContent = `
                         <div class="font-sans text-sm min-w-[220px] p-1">
@@ -694,9 +692,11 @@
                                 </div>
                                 <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Chỉ đường</span>
                                      <span class="font-medium text-gray-800">${store.dir.toLocaleString()}</span>
+                                     <span class="text-[9px] ${dirGrowthColor} font-bold ml-1">${dirGrowthIcon} ${Math.abs(store.dirGrowth)}%</span>
                                 </div>
                                 <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Tin nhắn</span>
                                      <span class="font-medium text-gray-800">${store.msg.toLocaleString()}</span>
+                                     <span class="text-[9px] ${msgGrowthColor} font-bold ml-1">${msgGrowthIcon} ${Math.abs(store.msgGrowth)}%</span>
                                 </div>
                                 <div><span class="block text-gray-400 text-[9px] uppercase font-bold">Rating GMB</span>
                                      <span class="font-bold ${store.rating > 0 && store.rating < 4 ? 'text-red-500' : 'text-green-600'}">${store.rating} ⭐</span>
